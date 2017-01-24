@@ -1,5 +1,8 @@
 var N3Parser = require('../N3').Parser;
 
+var Term = require('../N3').Term,
+    Quad = require('../N3').Quad;
+
 describe('N3Parser', function () {
   describe('The N3Parser module', function () {
     it('should be a function', function () {
@@ -794,7 +797,10 @@ describe('N3Parser', function () {
 
     it('should parse a string synchronously if no callback is given', function () {
       var triples = new N3Parser().parse('@prefix a: <urn:a:>. a:a a:b a:c.');
-      triples.should.deep.equal([{ subject: 'urn:a:a', predicate: 'urn:a:b', object: 'urn:a:c', graph: '' }]);
+      triples.should.deep.equal([
+        new Quad(Term.fromId('urn:a:a'), Term.fromId('urn:a:b'),
+                 Term.fromId('urn:a:c'), Term.fromId('')),
+      ]);
     });
 
     it('should throw on syntax errors if no callback is given', function () {
@@ -1855,7 +1861,10 @@ function shouldParse(createParser, input) {
   return function (done) {
     var results = [];
     var items = expected.map(function (item) {
-      return { subject: item[0], predicate: item[1], object: item[2], graph: item[3] || '' };
+      return new Quad(
+        Term.fromId(item[0]), Term.fromId(item[1]),
+        Term.fromId(item[2]), Term.fromId(item[3] || '')
+      );
     });
     N3Parser._resetBlankNodeIds();
     createParser().parse(input, function (error, triple) {
@@ -1869,7 +1878,11 @@ function shouldParse(createParser, input) {
 }
 
 function toSortedJSON(triples) {
-  triples = triples.map(JSON.stringify);
+  triples = triples.map(function (t) {
+    return JSON.stringify([
+      t.subject.id, t.predicate.id, t.object.id,  t.graph.id,
+    ]);
+  });
   triples.sort();
   return '[\n  ' + triples.join('\n  ') + '\n]';
 }
@@ -1908,7 +1921,7 @@ function itShouldResolve(baseIri, relativeIri, expected) {
       catch (error) { done(error); }
     });
     it('should result in ' + expected, function () {
-      expect(result.object).to.equal(expected);
+      expect(result.object.value).to.equal(expected);
     });
   });
 }
